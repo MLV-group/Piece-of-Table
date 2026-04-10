@@ -6,11 +6,11 @@
 
 ## Overview
 
-Overview of the proposed *PieTa* (Piece of Table) framework. Given an input table and a question, it synthesizes a subtable by iteratively dividing the table into smaller windows, selecting relevant cells within each window using language models, and merging the resulting subwindows. This process is repeated until the final subtable is formed.
-
 <p align="center">
   <img src="figures/overview_pieta.png" alt="PieTa overview" width="70%" />
 </p>
+
+Overview of the proposed *PieTa* (Piece of Table) framework. Given an input table and a question, it synthesizes a subtable by iteratively dividing the table into smaller windows, selecting relevant cells within each window using language models, and merging the resulting subwindows. This process is repeated until the final subtable is formed.
     
 ## Abstract
 

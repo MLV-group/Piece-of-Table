@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PieTa: A Divide-and-Conquer Approach for Selecting Subtables in Table Question Answering</title>
+  <meta name="description"
+        content="[ACL 2026] PieTa iteratively divides tables into windows and unions locally-selected subwindows to build compact, question-relevant subtables for table QA.">
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <meta name="robots" content="all">
+
+  <meta content="PieTa" property="og:title">
+  <meta content="A Divide-and-Conquer Approach for Selecting Subtables in Table Question Answering" property="og:description">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+
+  <meta name="theme-color" content="#C1E9F0">
+
+  <link rel="stylesheet" type="text/css" media="all" href="assets/stylesheets/main_free.css" />
+  <link rel="stylesheet" type="text/css" media="all" href="clarity/clarity.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+  <!-- Unify all page fonts to Charter (BibTeX/code stays monospace) -->
+  <style>
+    body, h1, h2, h3, h4, h5, h6, p, a, code, pre, ol, ul, li, table, footer p,
+    .title, .abstract, .author, .caption, .text, .button, button,
+    div.container.blog#first-content div.blog-title .blog-intro p.abstract,
+    div.container.blog#first-content div.blog-title .blog-intro p.author,
+    div.container.blog#first-content div.blog-title .blog-intro p.author a,
+    div.container.blog p.text {
+      font-family: "Charter", "Poppins", serif !important;
+    }
+    code, pre, .code, code.plaintext {
+      font-family: "Fira Code", monospace !important;
+    }
+  </style>
+
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        "HTML-CSS": {
+          scale: 95,
+          fonts: ["Gyre-Pagella"],
+          imageFont: null,
+          undefinedFamily: "'Arial Unicode MS', cmbright"
+        },
+        tex2jax: {
+            inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+            processEscapes: true
+          }
+      });
+  </script>
+  <script type="text/javascript"
+          src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  </script>
+</head>
+
+<body>
+<!-- Title Page -->
+<div class="container blog" id="first-content" style="background-color: #F6F6F6;">
+  <div class="blog-title no-cover">
+    <div class="blog-intro">
+      <div>
+        <h1 class="title"><b>Piece of Table</b>: A Divide-and-Conquer Approach <br> for Selecting Subtables in Table Question Answering</h1>
+        <p class="author">
+          <a href="#">Wonjin Lee</a><sup>*1</sup>,
+          <a href="#">Kyumin Kim</a><sup>*2</sup>,
+          <a href="#">Sungjae Lee</a><sup>1</sup>,
+          <a href="#">Jihun Lee</a><sup>1</sup>,
+          <a href="#">Kwang In Kim</a><sup>1</sup>
+        </p>
+        <p class="author" style="padding-top: 0px;">
+          <sup>1</sup>POSTECH &nbsp;&nbsp; <sup>2</sup>LG CNS &nbsp;&nbsp;
+          <span style="font-style: normal;">(<sup>*</sup>Equal contribution)</span>
+        </p>
+
+        <p style="text-align: left !important; margin: 0; text-transform: uppercase; font-weight: 700; font-size: 85%; color: #0f6674">
+          Accepted to ACL 2026
+        </p>
+
+        <p class="abstract" style="text-align: justify; padding-top: 20px;">
+          Applying language models (LMs) to tables is challenging due to the mismatch between the two-dimensional
+          structure of tables and the one-dimensional inputs expected by LMs. This mismatch forces linearization,
+          making LMs particularly sensitive to irrelevant cells. Subtable selection mitigates this challenge by
+          isolating question-relevant content prior to answer generation. However, existing approaches either rely
+          on independent row or column selection, failing to capture cross-row and cross-column dependencies, or
+          attempt global reasoning and face challenges similar to holistic table QA under noisy contexts. We propose
+          <b>PieTa</b> (<b>Pie</b>ce of <b>Ta</b>ble), a divide-and-conquer subtable selection framework that
+          progressively aggregates locally selected evidence without requiring explicit global reasoning. PieTa uses
+          an iterative, window-based multi-resolution process to construct compact subtables that capture global
+          dependencies while limiting LM exposure to irrelevant content. Extensive experiments demonstrate that PieTa
+          consistently outperforms prior subtable-based and holistic table QA approaches.
+        </p>
+
+        <!-- Paper / Code / Poster buttons. Fill the empty href="#" links with real URLs when ready. -->
+        <div class="info" style="padding-top: 20px;">
+          <div>
+            <a href="#" class="button icon"
+               style="background-color: #0F66741A"> Paper <i class="fa-solid fa-book-open"></i></a> &nbsp;&nbsp;
+            <a href="https://github.com/MLV-group/Piece-of-Table" class="button icon"
+               style="background-color: #0F66741A"> Code <i class="fa-solid fa-code"></i></a> &nbsp;&nbsp;
+            <a href="#" class="button icon"
+               style="background-color: #0F66741A"> Poster <i class="fa-solid fa-file-image"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Teaser: Figure 1 (overview) -->
+<div class="container blog main first" style="margin-top:60px; padding-top: 8px;">
+  <img src="assets/figures/figure1_overview.png" alt="PieTa overview"
+       style="width: 100%; height: auto; display: block;">
+  <p class="caption">
+    <b>Figure 1 in the paper.</b> Overview of the proposed <em>PieTa</em> framework. Given an input table and a
+    question, PieTa synthesizes a subtable by iteratively dividing the table into smaller windows, selecting relevant
+    cells within each window using a language model, and merging the resulting subwindows. The process repeats until
+    the final subtable is formed.
+  </p>
+</div>
+
+<!-- Introduction / Motivation -->
+<div class="container blog main first" id="blog-intro" style="text-align: justify">
+  <h1>Why subtable selection?</h1>
+  <p class="text">
+    Tables are inherently two-dimensional, but language models read them as a linearized 1D token sequence. The
+    linearization forces evidence cells and irrelevant cells into the same context, and only a small fraction of cells
+    actually grounds the answer. As a result, LM readers can be easily distracted by noise &mdash; even with table-aware
+    pretraining or careful prompting.
+  </p>
+  <p class="text">
+    <em>Subtable selection</em> reduces this noise by isolating a small, question-relevant subset of the table before
+    answer generation. But existing selectors fall into two failure modes:
+  </p>
+  <p class="text">
+    (1) <b>Independent row/column scoring</b> (e.g., ITR) is fast but misses cross-row and cross-column dependencies.
+    (2) <b>Joint global selection</b> (e.g., Dater, TabSQLify, "Holistic LM") tries to reason over the whole table but
+    inherits the same long-context distraction it was supposed to remove.
+  </p>
+  <p class="text">
+    PieTa avoids both pitfalls by working at <em>moderate</em> resolutions: it always feeds the LM only a
+    $w \times w$ window, and lets a <em>union</em> over many window-level selections reconstruct global structure.
+  </p>
+</div>
+
+<!-- Method -->
+<div class="container blog main first" id="blog-method" style="text-align: justify;">
+  <h1>Method: Divide &mdash; Conquer &mdash; Combine</h1>
+  <p class="text">
+    Given a table $T$ and question $Q$, PieTa iteratively applies three steps:
+  </p>
+  <p class="text">
+    <b>Divide.</b> Slide a $w \times w$ window over the current table $T^{t}$ to obtain overlapping windows
+    $\{W_i\}_{i=1}^{N}$.
+    <b>Conquer.</b> A fine-tuned LM-based subwindow selector $\mathcal{S}'$ extracts the relevant subwindow
+    $\widehat{V}_i = \mathcal{S}'(\mathcal{P}(W_i, Q))$ inside each window.
+    <b>Combine.</b> The new table $T^{t+1}$ is the union of all selected subwindows
+    $T^{t+1} = \bigcup_i \widehat{V}_i$.
+    The loop terminates when the table no longer changes ($T^{t+1} = T^{t}$). This converges to a compact subtable that
+    contains roughly 14% of the original cells while reaching downstream QA accuracy comparable to gold subtables.
+  </p>
+</div>
+
+<div class="container blog main gray">
+  <img src="assets/figures/figure2_training_data.png" alt="Training data generation"
+       style="width: 100%; height: auto; display: block;">
+  <p class="caption">
+    <b>Figure 2 in the paper.</b> Example of training data generation for the subwindow selector with window size
+    $w = 4$. The selector is trained on windows sampled from WikiSQL/SQUALL; the target subwindow inside each window is
+    built from the condition and answer columns under the question's constraints. Even though the per-window targets
+    are local, their <em>union</em> across windows reproduces a table that supports the correct global answer.
+  </p>
+</div>
+
+<div class="container blog main first" style="text-align: justify;">
+  <h2>Coordinate representation for the selector output</h2>
+  <p class="text">
+    A key design choice is how the LM emits the selected subwindow. Two natural options &mdash; (a) <em>index</em>
+    (row/column ids only) and (b) <em>table</em> (regenerate the cells) &mdash; both fail when the relevant header is
+    missed: index loses the content that disambiguates rows, and table emission compounds autoregressive errors. PieTa
+    introduces a (c) <em>coordinate</em> representation that preserves the window's spatial structure while emitting
+    explicit <code>&lt;row, col&gt;</code> tokens for selected cells and <code>&lt;&phi;, &phi;&gt;</code> for unselected
+    ones. This recovers cells even when their column header was overlooked.
+  </p>
+</div>
+
+<div class="container blog main gray">
+  <img src="assets/figures/figure3_representations.png" alt="Subtable representations"
+       style="max-width: 80%; height: auto; display: block; margin: 0 auto;">
+  <p class="caption">
+    <b>Figure 3 in the paper.</b> Comparison of subtable representations on a $4 \times 4$ window. Index and table
+    representations miss the cell <code>safe</code> because the column <code>Placement</code> is not selected; the
+    coordinate representation preserves the window structure and recovers the relevant cell.
+  </p>
+</div>
+
+<!-- Results -->
+<div class="container blog main first">
+  <h1>Results</h1>
+  <p class="text" style="text-align: justify;">
+    PieTa is evaluated on three benchmarks: <b>WikiTQ</b>, <b>WikiSQL</b>, and the hierarchical <b>HiTab</b>. We pair
+    it with both specialized readers (TaPEx, OmniTab) and general-purpose readers (GPT-3.5, Gemini 2.0, DP&amp;Agent),
+    and compare to ITR, Dater, TabSQLify as well as holistic QA models (Binder, StructGPT, CABINET, Chain-of-Table,
+    ReAcTable). Across <em>almost every reader configuration</em>, PieTa gives the strongest reader the strongest
+    subtable, and it also gives the largest absolute gain over the holistic (no-selection) baseline.
+  </p>
+</div>
+
+<div class="container blog main gray">
+  <img src="assets/figures/table5_main_results.png" alt="Main QA results"
+       style="max-width: 95%; height: auto; display: block; margin: 0 auto;">
+  <p class="caption">
+    <b>Table 5 in the paper.</b> Exact-match accuracy (%) on WikiTQ, WikiSQL, and HiTab. (Top) Selector-based QA pairs
+    each subtable selector with multiple readers; <em>"&ndash;"</em> denotes the holistic setting (no selection).
+    (Bottom) Additional holistic QA baselines. PieTa is best or second-best for nearly every reader.
+  </p>
+</div>
+
+<div class="container blog main">
+  <h2>PieTa scales gracefully with table size and answer-cell distance</h2>
+  <p class="text" style="text-align: justify;">
+    Holistic readers degrade sharply on large tables, and prior selectors degrade when relevant cells are far apart in
+    the linearized stream. PieTa's union-based, multi-resolution construction stays effective in both regimes &mdash;
+    because every individual LM call still sees only a small $w \times w$ window, but cross-window union recombines
+    distant evidence.
+  </p>
+  <div>
+    <figure style="display: flex; gap: 10px; align-items: flex-end;">
+      <figure style="text-align: center; flex: 1;">
+        <img src="assets/figures/figure4_qa_scaling.png" style="max-width: 100%; height: auto;">
+        <p class="caption">Figure 4: EM (%) across table sizes on WikiTQ (top) and WikiSQL (bottom).</p>
+      </figure>
+      <figure style="text-align: center; flex: 1;">
+        <img src="assets/figures/figure5_distance.png" style="max-width: 100%; height: auto;">
+        <p class="caption">Figure 5: EM (%) on WikiSQL as the maximum distance between answer cells grows.</p>
+      </figure>
+    </figure>
+  </div>
+</div>
+
+<div class="container blog main">
+  <h2>Selection quality</h2>
+  <p class="text" style="text-align: justify;">
+    On the WikiSQL test set, PieTa improves selection precision over ITR by <b>+47.4</b> percentage points while keeping
+    recall above <b>99%</b>. Recall stays high across varying numbers of condition columns and answer rows &mdash; the
+    property that matters most for downstream QA, since missing evidence cells cannot be recovered by the reader.
+  </p>
+</div>
+
+<div class="container blog main gray">
+  <img src="assets/figures/table4_selection_results.png" alt="Subtable selection results on WikiTQ and HiTab"
+       style="max-width: 70%; height: auto; display: block; margin: 0 auto;">
+  <p class="caption">
+    <b>Table 4 in the paper.</b> Manual-annotation subtable selection results on WikiTQ and HiTab. PieTa attains the
+    highest recall on both, indicating that it reliably preserves the evidence required for answering.
+  </p>
+</div>
+
+<!-- Conclusion -->
+<div class="container blog main">
+  <h1>Conclusion</h1>
+  <p class="text" style="text-align: justify;">
+    PieTa shows that you do not need the LM to reason over the entire table to pick a good subtable. By restricting
+    each LM call to a small window and reconstructing global structure through a union over windows, PieTa avoids the
+    long-context distraction that hurts holistic selectors and the missed cross-dependencies that hurt
+    row/column-independent selectors. The result is consistent, reader-agnostic gains over prior subtable selection
+    and holistic QA approaches on WikiTQ, WikiSQL, and HiTab.
+  </p>
+</div>
+
+<!-- BibTeX -->
+<div class="container blog main">
+  <h1>Citation</h1>
+  <p class="text">If you find our work useful, please cite it as:</p>
+  <pre><code class="plaintext">@inproceedings{lee2026piece,
+    title     = {Piece of Table: A Divide-and-Conquer Approach for Selecting Subtables in Table Question Answering},
+    author    = {Lee, Wonjin and Kim, Kyumin and Lee, Sungjae and Lee, Jihun and Kim, Kwang In},
+    booktitle = {Proceedings of the Annual Meeting of the Association for Computational Linguistics (ACL)},
+    year      = {2026}
+}</code></pre>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p>
+      This website is loosely built on the <a href="https://shikun.io/projects/clarity">Clarity Template</a>.
+    </p>
+  </div>
+</footer>
+</body>
+</html>

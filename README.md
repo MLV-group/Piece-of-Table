@@ -25,9 +25,10 @@ Code coming soon.
 If you find this work useful, please consider citing:
 
 ```bibtex
-@Inproceedings{lee2024piece,
-  title={Piece of {T}able: A Divide-and-Conquer Approach for Selecting Subtables in Table Question Answering},
+@inproceedings{lee2026piece,
+  title={Piece of table: A divide-and-conquer approach for selecting subtables in table question answering},
   author={Lee, Wonjin and Kim, Kyumin and Lee, Sungjae and Lee, Jihun and Kim, Kwang In},
-  booktitle={ACL},
+  booktitle={Proceedings of the 64th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  pages={31672--31688},
   year={2026}
 }
